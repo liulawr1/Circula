@@ -111,6 +111,7 @@ struct ListingRowView: View {
 }
 
 struct ListingDetailView: View {
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: MarketplaceStore
 
     let listing: Listing
@@ -182,7 +183,9 @@ struct ListingDetailView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8))
 
                     NavigationLink {
-                        ManageListingView(listing: listing)
+                        ManageListingView(listing: listing) {
+                            dismiss()
+                        }
                     } label: {
                         Label("Manage Listing", systemImage: "slider.horizontal.3")
                             .frame(maxWidth: .infinity)

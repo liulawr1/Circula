@@ -234,14 +234,16 @@ struct ManageListingView: View {
     @EnvironmentObject private var store: MarketplaceStore
 
     let listing: Listing
+    let onDeleted: () -> Void
 
     @State private var showingDeleteAlert = false
     @State private var selectedStatus: String
 
     let statuses = ["Available", "Pending", "Completed"]
 
-    init(listing: Listing) {
+    init(listing: Listing, onDeleted: @escaping () -> Void = { }) {
         self.listing = listing
+        self.onDeleted = onDeleted
         _selectedStatus = State(initialValue: listing.status)
     }
 
@@ -302,10 +304,10 @@ struct ManageListingView: View {
             Button("Cancel", role: .cancel) { }
 
             Button("Delete", role: .destructive) {
-                dismiss()
-
                 Task {
                     await store.deleteListing(id: listing.id)
+                    onDeleted()
+                    dismiss()
                 }
             }
         } message: {
