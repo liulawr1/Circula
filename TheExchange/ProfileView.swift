@@ -14,6 +14,7 @@ struct ProfileView: View {
     let currentUserEmail: String
     let onSignOut: () -> Void
 
+    @State private var showingSignOutAlert = false
     @State private var showingDeleteAccountAlert = false
     @State private var deleteAccountError = ""
     @State private var isDeletingAccount = false
@@ -154,7 +155,7 @@ struct ProfileView: View {
                 
                 Section {
                     Button(role: .destructive) {
-                        onSignOut()
+                        showingSignOutAlert = true
                     } label: {
                         Text("Sign Out")
                     }
@@ -179,6 +180,15 @@ struct ProfileView: View {
             .navigationTitle("Profile")
             .refreshable {
                 await store.refreshAll()
+            }
+            .alert("Sign Out?", isPresented: $showingSignOutAlert) {
+                Button("Cancel", role: .cancel) { }
+
+                Button("Sign Out", role: .destructive) {
+                    onSignOut()
+                }
+            } message: {
+                Text("You will need to sign in again to use The Exchange on this device.")
             }
             .alert("Delete Account?", isPresented: $showingDeleteAccountAlert) {
                 Button("Cancel", role: .cancel) { }
