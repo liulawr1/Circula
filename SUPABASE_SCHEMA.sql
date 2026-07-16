@@ -1,4 +1,4 @@
--- The Exchange Supabase schema
+-- Circula Supabase schema
 -- Run this in Supabase Dashboard > SQL Editor.
 -- Initial setup script: this resets these app tables, then recreates them.
 

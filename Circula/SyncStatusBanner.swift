@@ -1,6 +1,6 @@
 //
 //  SyncStatusBanner.swift
-//  TheExchange
+//  Circula
 //
 
 import SwiftUI

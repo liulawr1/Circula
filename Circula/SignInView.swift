@@ -1,6 +1,6 @@
 //
 //  SignInView.swift
-//  TheExchange
+//  Circula
 //
 //  Created by Lawrence Liu on 5/6/26.
 //
@@ -47,15 +47,15 @@ struct SignInView: View {
                 VStack(spacing: 10) {
                     Image(systemName: "arrow.left.arrow.right.circle.fill")
                         .font(.system(size: 58))
-                        .foregroundStyle(ExchangeTheme.forest)
+                        .foregroundStyle(CirculaTheme.forest)
                         .padding(14)
                         .background(Color.white.opacity(0.75))
                         .clipShape(Circle())
 
-                    Text("The Exchange")
+                    Text("Circula")
                         .font(.largeTitle)
                         .fontWeight(.bold)
-                        .foregroundStyle(ExchangeTheme.ink)
+                        .foregroundStyle(CirculaTheme.ink)
 
                     Text("A school-only marketplace for trading, selling, and sharing supplies.")
                         .font(.subheadline)
@@ -133,13 +133,13 @@ struct SignInView: View {
                                 .padding()
                         }
                     }
-                    .background(ExchangeTheme.forest)
+                    .background(CirculaTheme.forest)
                     .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .disabled(isWorking)
                 }
                 .padding(.horizontal)
-                .exchangeCard()
+                .circulaCard()
 
                 VStack(spacing: 8) {
                     Label("Supabase authentication", systemImage: "lock.shield")
@@ -152,9 +152,12 @@ struct SignInView: View {
                 Spacer()
             }
             .padding()
-            .background(ExchangeBackground())
-            .tint(ExchangeTheme.forest)
+            .background(CirculaBackground())
+            .scrollDismissesKeyboard(.interactively)
+            .tint(CirculaTheme.forest)
             .onSubmit {
+                KeyboardHelper.dismiss()
+
                 Task {
                     await submit()
                 }

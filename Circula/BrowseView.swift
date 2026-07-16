@@ -1,6 +1,6 @@
 //
 //  BrowseView.swift
-//  TheExchange
+//  Circula
 //
 //  Created by Lawrence Liu on 5/6/26.
 //
@@ -102,9 +102,9 @@ struct BrowseView: View {
                     }
                 }
             }
-            .background(ExchangeBackground())
-            .tint(ExchangeTheme.forest)
-            .navigationTitle("The Exchange")
+            .background(CirculaBackground())
+            .tint(CirculaTheme.forest)
+            .navigationTitle("Circula")
             .searchable(
                 text: $searchText,
                 placement: .navigationBarDrawer(displayMode: .always),
@@ -128,7 +128,7 @@ struct BrowseView: View {
                             .fontWeight(.medium)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
-                            .background(selectedCategory == category ? ExchangeTheme.forest : Color.white.opacity(0.75))
+                            .background(selectedCategory == category ? CirculaTheme.forest : Color.white.opacity(0.75))
                             .foregroundStyle(selectedCategory == category ? .white : .primary)
                             .clipShape(Capsule())
                     }
@@ -151,7 +151,7 @@ struct BrowseView: View {
                         .fontWeight(.semibold)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(selectedType == type ? ExchangeTheme.teal : Color.white.opacity(0.75))
+                        .background(selectedType == type ? CirculaTheme.teal : Color.white.opacity(0.75))
                         .foregroundStyle(selectedType == type ? .white : .primary)
                         .clipShape(Capsule())
                 }
@@ -188,7 +188,7 @@ struct BrowseHeaderView: View {
                 Text("Hi, \(firstName)")
                     .font(.title2)
                     .fontWeight(.bold)
-                    .foregroundStyle(ExchangeTheme.ink)
+                    .foregroundStyle(CirculaTheme.ink)
 
                 Text("\(listingCount) listings ready to browse")
                     .font(.caption)
@@ -199,11 +199,11 @@ struct BrowseHeaderView: View {
 
             Image(systemName: "arrow.left.arrow.right.circle.fill")
                 .font(.title2)
-                .foregroundStyle(ExchangeTheme.forest)
+                .foregroundStyle(CirculaTheme.forest)
                 .frame(width: 44, height: 44)
                 .background(Color.white.opacity(0.78))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
         }
-        .exchangeCard()
+        .circulaCard()
     }
 }

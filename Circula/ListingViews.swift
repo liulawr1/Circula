@@ -1,6 +1,6 @@
 //
 //  ListingViews.swift
-//  TheExchange
+//  Circula
 //
 //  Created by Lawrence Liu on 5/6/26.
 //
@@ -33,7 +33,7 @@ struct ListingRowView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(listing.title)
                     .font(.headline)
-                    .foregroundStyle(ExchangeTheme.ink)
+                    .foregroundStyle(CirculaTheme.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.9)
 
@@ -83,7 +83,7 @@ struct ListingRowView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
-        .exchangeCard()
+        .circulaCard()
         .padding(.vertical, 4)
     }
 
@@ -97,11 +97,11 @@ struct ListingRowView: View {
                     .frame(width: thumbnailSize, height: thumbnailSize, alignment: .center)
                     .clipped()
             } else {
-                ExchangeTheme.teal.opacity(0.12)
+                CirculaTheme.teal.opacity(0.12)
 
                 Image(systemName: iconName(for: listing.category))
                     .font(.title)
-                    .foregroundStyle(ExchangeTheme.teal)
+                    .foregroundStyle(CirculaTheme.teal)
                     .frame(width: thumbnailSize, height: thumbnailSize, alignment: .center)
             }
         }
@@ -119,6 +119,7 @@ struct ListingDetailView: View {
     let currentUserEmail: String
 
     @State private var showingReportAlert = false
+    @State private var showingBlockUserAlert = false
     @State private var reportSubmitted = false
 
     var isOwnListing: Bool {
@@ -131,7 +132,7 @@ struct ListingDetailView: View {
     
     let reportReasons = [
         "Inappropriate item",
-        "Unsafe exchange",
+        "Unsafe meetup",
         "Spam or duplicate",
         "Incorrect information",
         "Other"
@@ -146,7 +147,7 @@ struct ListingDetailView: View {
                 Text(listing.title)
                     .font(.largeTitle)
                     .fontWeight(.bold)
-                    .foregroundStyle(ExchangeTheme.ink)
+                    .foregroundStyle(CirculaTheme.ink)
 
                 Text("\(listing.category) • \(listing.condition) • \(listing.type) • \(listing.status)")
                     .foregroundStyle(.secondary)
@@ -190,7 +191,7 @@ struct ListingDetailView: View {
                         Label("Manage Listing", systemImage: "slider.horizontal.3")
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(ExchangeTheme.forest)
+                            .background(CirculaTheme.forest)
                             .foregroundStyle(.white)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
@@ -218,7 +219,7 @@ struct ListingDetailView: View {
                         Text("Message Owner")
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(ExchangeTheme.forest)
+                            .background(CirculaTheme.forest)
                             .foregroundStyle(.white)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
@@ -259,19 +260,36 @@ struct ListingDetailView: View {
                     .alert("Report Submitted", isPresented: $reportSubmitted) {
                         Button("OK", role: .cancel) { }
                     } message: {
-                        Text("Thank you for helping keep The Exchange safe.")
+                        Text("Thank you for helping keep Circula safe.")
+                    }
+
+                    Button(role: .destructive) {
+                        showingBlockUserAlert = true
+                    } label: {
+                        Text("Block User")
+                            .frame(maxWidth: .infinity)
                     }
                 }
             }
             .padding()
-            .exchangeCard()
+            .circulaCard()
             .padding()
         }
         .scrollDismissesKeyboard(.interactively)
-        .background(ExchangeBackground())
-        .tint(ExchangeTheme.forest)
+        .background(CirculaBackground())
+        .tint(CirculaTheme.forest)
         .navigationTitle("Listing")
         .navigationBarTitleDisplayMode(.inline)
+        .alert("Block \(listing.ownerName)?", isPresented: $showingBlockUserAlert) {
+            Button("Cancel", role: .cancel) { }
+
+            Button("Block", role: .destructive) {
+                store.blockUser(email: listing.ownerEmail)
+                dismiss()
+            }
+        } message: {
+            Text("You will no longer see this student's listings or conversations on this device.")
+        }
     }
 
     var listingImage: some View {
@@ -282,11 +300,11 @@ struct ListingDetailView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
             } else {
-                ExchangeTheme.teal.opacity(0.12)
+                CirculaTheme.teal.opacity(0.12)
 
                 Image(systemName: iconName(for: listing.category))
                     .font(.system(size: 56))
-                    .foregroundStyle(ExchangeTheme.teal)
+                    .foregroundStyle(CirculaTheme.teal)
             }
         }
         .aspectRatio(1, contentMode: .fit)
@@ -346,6 +364,6 @@ func exchangeLabel(for type: String) -> String {
     case "Free":
         return "Free item note"
     default:
-        return "Exchange preference"
+        return "Trade preference"
     }
 }

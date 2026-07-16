@@ -1,6 +1,6 @@
 //
 //  MessagesView.swift
-//  TheExchange
+//  Circula
 //
 //  Created by Lawrence Liu on 5/6/26.
 //
@@ -47,8 +47,8 @@ struct MessagesView: View {
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.interactively)
-            .background(ExchangeBackground())
-            .tint(ExchangeTheme.forest)
+            .background(CirculaBackground())
+            .tint(CirculaTheme.forest)
             .navigationTitle("Messages")
             .refreshable {
                 await store.refreshAll()
@@ -97,7 +97,7 @@ struct MessageRowView: View {
                 Circle()
                     .fill(
                         LinearGradient(
-                            colors: [ExchangeTheme.teal, ExchangeTheme.forest],
+                            colors: [CirculaTheme.teal, CirculaTheme.forest],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -113,7 +113,7 @@ struct MessageRowView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(otherStudentName)
                         .font(.headline.weight(.semibold))
-                        .foregroundStyle(ExchangeTheme.ink)
+                        .foregroundStyle(CirculaTheme.ink)
                         .lineLimit(1)
 
                     Spacer(minLength: 8)
@@ -126,7 +126,7 @@ struct MessageRowView: View {
 
                 Text(conversation.listingTitle)
                     .font(.subheadline)
-                    .foregroundStyle(ExchangeTheme.ink.opacity(0.78))
+                    .foregroundStyle(CirculaTheme.ink.opacity(0.78))
                     .lineLimit(1)
 
                 Text(messagePreview)
@@ -142,7 +142,7 @@ struct MessageRowView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(ExchangeTheme.softStroke)
+                .fill(CirculaTheme.softStroke)
                 .frame(height: 1)
                 .padding(.leading, 78)
         }
@@ -265,8 +265,8 @@ struct ChatView: View {
                 messageComposer
             }
         }
-        .background(ExchangeBackground())
-        .tint(ExchangeTheme.forest)
+        .background(CirculaBackground())
+        .tint(CirculaTheme.forest)
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .onSubmit {
@@ -290,7 +290,7 @@ struct ChatView: View {
             } label: {
                 Image(systemName: "paperplane.fill")
                     .frame(width: 42, height: 36)
-                    .background(ExchangeTheme.forest)
+                    .background(CirculaTheme.forest)
                     .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             }
@@ -301,7 +301,7 @@ struct ChatView: View {
         .background(Color.white.opacity(0.92))
         .overlay(alignment: .top) {
             Rectangle()
-                .fill(ExchangeTheme.softStroke)
+                .fill(CirculaTheme.softStroke)
                 .frame(height: 1)
         }
     }
@@ -355,7 +355,7 @@ struct MessageBubbleView: View {
             VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
                 Text(message.text)
                     .padding(10)
-                    .background(isCurrentUser ? ExchangeTheme.forest : Color.white.opacity(0.82))
+                    .background(isCurrentUser ? CirculaTheme.forest : Color.white.opacity(0.82))
                     .foregroundStyle(isCurrentUser ? .white : .primary)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
 

@@ -1,4 +1,4 @@
-# The Exchange Supabase Setup
+# Circula Supabase Setup
 
 The app now uses Supabase/Postgres through Supabase's REST API. No Apple Developer Program or CloudKit container is required.
 
@@ -11,7 +11,7 @@ The app now uses Supabase/Postgres through Supabase's REST API. No Apple Develop
 5. Copy:
    - **Project URL**
    - **anon public** key
-6. Open `TheExchange/SupabaseConfig.plist`.
+6. Open `Circula/SupabaseConfig.plist`.
 7. Replace:
 
 ```text
@@ -39,18 +39,18 @@ Also go to **Authentication > URL Configuration**:
 1. Set **Site URL** to:
 
 ```text
-theexchange://email-verified
+circula://email-verified
 ```
 
 2. Add the same URL to **Redirect URLs** if Supabase shows that list:
 
 ```text
-theexchange://email-verified
+circula://email-verified
 ```
 
 Do not leave the Site URL as `http://localhost:3000`, and do not use the raw Supabase project URL as the final redirect. The raw Supabase project domain verifies the email correctly, but it does not host an app page, so it can show `{"error":"requested path is invalid"}` after verification.
 
-The app registers the `theexchange://` URL scheme. When a student opens the newest verification email on a device with The Exchange installed, the link opens the app and shows an email-verified message. Then the student can sign in.
+The app registers the `circula://` URL scheme. When a student opens the newest verification email on a device with Circula installed, the link opens the app and shows an email-verified message. Then the student can sign in.
 
 ## Important security note
 

@@ -1,6 +1,6 @@
 //
 //  Conversation.swift
-//  TheExchange
+//  Circula
 //
 
 import Foundation
@@ -43,6 +43,10 @@ struct Conversation: Identifiable, Codable {
 
     func otherStudentName(for currentUserEmail: String) -> String {
         currentUserEmail.lowercased() == sellerEmail.lowercased() ? buyerName : sellerName
+    }
+
+    func otherStudentEmail(for currentUserEmail: String) -> String {
+        currentUserEmail.lowercased() == sellerEmail.lowercased() ? buyerEmail : sellerEmail
     }
 }
 

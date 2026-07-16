@@ -1,6 +1,6 @@
 //
 //  MarketplaceStore.swift
-//  TheExchange
+//  Circula
 //
 
 import Combine
@@ -21,6 +21,7 @@ final class MarketplaceStore: ObservableObject {
     @Published private(set) var reports: [ListingReport] = []
     @Published private(set) var conversations: [Conversation] = []
     @Published private(set) var messagesByConversationID: [UUID: [ChatMessage]] = [:]
+    @Published private(set) var blockedUserEmails: Set<String> = []
     @Published private(set) var isLoading = false
     @Published private(set) var syncError: String?
     @Published private(set) var isCloudConnected = false
@@ -47,6 +48,7 @@ final class MarketplaceStore: ObservableObject {
         currentUserName = name
         currentUserEmail = email.lowercased()
         client?.setAccessToken(accessToken)
+        loadBlockedUsers()
         loadLocalCache()
 
         Task {
@@ -62,6 +64,7 @@ final class MarketplaceStore: ObservableObject {
         reports = []
         conversations = []
         messagesByConversationID = [:]
+        blockedUserEmails = []
         syncError = nil
         isCloudConnected = false
         lastSyncedAt = nil
@@ -153,10 +156,11 @@ final class MarketplaceStore: ObservableObject {
             let fetchedReports = try await client.fetchReports()
             let fetchedConversations = try await client.fetchConversations(for: currentUserEmail)
 
-            listings = fetchedListings
-            savedListingIDs = fetchedSavedIDs
+            listings = filteredListings(fetchedListings)
+            let visibleListingIDs = Set(listings.map(\.id))
+            savedListingIDs = Set(fetchedSavedIDs.filter { visibleListingIDs.contains($0) })
             reports = fetchedReports
-            conversations = fetchedConversations
+            conversations = filteredConversations(fetchedConversations)
             syncError = nil
             isCloudConnected = true
             lastSyncedAt = Date()
@@ -416,6 +420,37 @@ final class MarketplaceStore: ObservableObject {
             isCloudConnected = false
         }
     }
+
+    func isUserBlocked(_ email: String) -> Bool {
+        blockedUserEmails.contains(normalizedEmail(email))
+    }
+
+    func isConversationBlocked(_ conversation: Conversation) -> Bool {
+        isUserBlocked(conversation.otherStudentEmail(for: currentUserEmail))
+    }
+
+    func blockUser(email: String) {
+        let email = normalizedEmail(email)
+
+        guard !email.isEmpty,
+              email != currentUserEmail else {
+            return
+        }
+
+        blockedUserEmails.insert(email)
+        saveBlockedUsers()
+        removeBlockedContent()
+        saveLocalCache()
+    }
+
+    func unblockUser(email: String) {
+        blockedUserEmails.remove(normalizedEmail(email))
+        saveBlockedUsers()
+
+        Task {
+            await refreshAll()
+        }
+    }
 }
 
 private extension MarketplaceStore {
@@ -432,6 +467,54 @@ private extension MarketplaceStore {
         let messages: [ChatMessage]
     }
 
+    func blockedUsersDefaultsKey() -> String {
+        "blocked-users-\(currentUserEmail)"
+    }
+
+    func normalizedEmail(_ email: String) -> String {
+        email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    func loadBlockedUsers() {
+        let emails = UserDefaults.standard.stringArray(forKey: blockedUsersDefaultsKey()) ?? []
+        blockedUserEmails = Set(emails.map(normalizedEmail))
+    }
+
+    func saveBlockedUsers() {
+        UserDefaults.standard.set(Array(blockedUserEmails).sorted(), forKey: blockedUsersDefaultsKey())
+    }
+
+    func filteredListings(_ source: [Listing]) -> [Listing] {
+        source.filter { listing in
+            listing.ownerEmail.lowercased() == currentUserEmail || !isUserBlocked(listing.ownerEmail)
+        }
+    }
+
+    func filteredConversations(_ source: [Conversation]) -> [Conversation] {
+        source.filter { conversation in
+            !isConversationBlocked(conversation)
+        }
+    }
+
+    func removeBlockedContent() {
+        let hiddenListingIDs = Set(listings.filter { listing in
+            listing.ownerEmail.lowercased() != currentUserEmail && isUserBlocked(listing.ownerEmail)
+        }.map(\.id))
+
+        listings.removeAll { listing in
+            hiddenListingIDs.contains(listing.id)
+        }
+        savedListingIDs.subtract(hiddenListingIDs)
+
+        let hiddenConversationIDs = Set(conversations.filter(isConversationBlocked).map(\.id))
+        conversations.removeAll { conversation in
+            hiddenConversationIDs.contains(conversation.id)
+        }
+        messagesByConversationID = messagesByConversationID.filter { conversationID, _ in
+            !hiddenConversationIDs.contains(conversationID)
+        }
+    }
+
     func loadLocalCache() {
         guard let data = try? Data(contentsOf: cacheURL),
               let snapshot = try? JSONDecoder().decode(CacheSnapshot.self, from: data) else {
@@ -444,12 +527,13 @@ private extension MarketplaceStore {
         listings = snapshot.listings
         savedListingIDs = snapshot.savedListingIDs
         reports = snapshot.reports
-        conversations = snapshot.conversations
+        conversations = filteredConversations(snapshot.conversations)
         messagesByConversationID = Dictionary(
             uniqueKeysWithValues: snapshot.messageThreads.map { thread in
                 (thread.conversationID, thread.messages)
             }
         )
+        removeBlockedContent()
     }
 
     func saveLocalCache() {
@@ -577,7 +661,7 @@ final class SupabaseRESTClient {
 
     private let baseURL: URL
     private let anonKey: String
-    private let authRedirectURL = URL(string: "theexchange://email-verified")!
+    private let authRedirectURL = URL(string: "circula://email-verified")!
     private let session: URLSession
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder

@@ -1,6 +1,6 @@
 //
 //  ProfileView.swift
-//  TheExchange
+//  Circula
 //
 //  Created by Lawrence Liu on 5/6/26.
 //
@@ -58,13 +58,13 @@ struct ProfileView: View {
                     HStack(spacing: 14) {
                         Image(systemName: "person.crop.circle.fill")
                             .font(.system(size: 48))
-                            .foregroundStyle(ExchangeTheme.forest)
+                            .foregroundStyle(CirculaTheme.forest)
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text(currentUserName)
                                 .font(.title3)
                                 .fontWeight(.bold)
-                                .foregroundStyle(ExchangeTheme.ink)
+                                .foregroundStyle(CirculaTheme.ink)
 
                             Text(currentUserEmail)
                                 .font(.caption)
@@ -139,6 +139,18 @@ struct ProfileView: View {
                         Label("Community Standards", systemImage: "checkmark.shield")
                     }
 
+                    NavigationLink {
+                        BlockedUsersView()
+                    } label: {
+                        Label("Blocked Users", systemImage: "person.crop.circle.badge.xmark")
+                    }
+
+                    NavigationLink {
+                        SupportPrivacyView()
+                    } label: {
+                        Label("Support & Privacy", systemImage: "lock.shield")
+                    }
+
                     if isModerator {
                         NavigationLink {
                             ModeratorReportsView()
@@ -148,7 +160,7 @@ struct ProfileView: View {
                     }
 
                     Text("Head-Royce email required")
-                    Text("On-campus exchanges only")
+                    Text("On-campus meetups only")
                     Text("Report unsafe listings")
                 }
                 .listRowBackground(Color.white.opacity(0.82))
@@ -175,8 +187,8 @@ struct ProfileView: View {
             }
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.interactively)
-            .background(ExchangeBackground())
-            .tint(ExchangeTheme.forest)
+            .background(CirculaBackground())
+            .tint(CirculaTheme.forest)
             .navigationTitle("Profile")
             .refreshable {
                 await store.refreshAll()
@@ -188,7 +200,7 @@ struct ProfileView: View {
                     onSignOut()
                 }
             } message: {
-                Text("You will need to sign in again to use The Exchange on this device.")
+                Text("You will need to sign in again to use Circula on this device.")
             }
             .alert("Delete Account?", isPresented: $showingDeleteAccountAlert) {
                 Button("Cancel", role: .cancel) { }
@@ -199,7 +211,7 @@ struct ProfileView: View {
                     }
                 }
             } message: {
-                Text("This will permanently delete your account, listings, saved listings, reports, conversations, and messages from The Exchange.")
+                Text("This will permanently delete your account, listings, saved listings, reports, conversations, and messages from Circula.")
             }
             .alert("Could Not Delete Account", isPresented: Binding(
                 get: { !deleteAccountError.isEmpty },
@@ -297,8 +309,8 @@ struct ManageListingView: View {
         }
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
-        .background(ExchangeBackground())
-        .tint(ExchangeTheme.forest)
+        .background(CirculaBackground())
+        .tint(CirculaTheme.forest)
         .navigationTitle("Manage Listing")
         .alert("Delete Listing?", isPresented: $showingDeleteAlert) {
             Button("Cancel", role: .cancel) { }
@@ -311,8 +323,74 @@ struct ManageListingView: View {
                 }
             }
         } message: {
-            Text("This will remove the listing from The Exchange.")
+            Text("This will remove the listing from Circula.")
         }
+    }
+}
+
+struct BlockedUsersView: View {
+    @EnvironmentObject private var store: MarketplaceStore
+
+    var body: some View {
+        List {
+            if store.blockedUserEmails.isEmpty {
+                ContentUnavailableView(
+                    "No Blocked Users",
+                    systemImage: "person.crop.circle.badge.checkmark",
+                    description: Text("Blocked students will appear here so you can unblock them later.")
+                )
+            } else {
+                Section("Blocked") {
+                    ForEach(Array(store.blockedUserEmails).sorted(), id: \.self) { email in
+                        HStack {
+                            Text(email)
+                                .lineLimit(1)
+
+                            Spacer()
+
+                            Button("Unblock") {
+                                store.unblockUser(email: email)
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                }
+                .listRowBackground(Color.white.opacity(0.82))
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(CirculaBackground())
+        .tint(CirculaTheme.forest)
+        .navigationTitle("Blocked Users")
+    }
+}
+
+struct SupportPrivacyView: View {
+    var body: some View {
+        List {
+            Section("Support") {
+                Text("For help, safety concerns, or moderation requests, please contact support at circulasupport@gmail.com.")
+            }
+            .listRowBackground(Color.white.opacity(0.82))
+
+            Section("Privacy") {
+                Text("Circula stores your school email, display name, listings, listing photos, saved listings, reports, conversations, and messages so the marketplace can work across devices.")
+                Text("Circula does not include ads or third-party tracking.")
+                Text("You can delete your account from Profile, which removes your account data from Circula.")
+            }
+            .listRowBackground(Color.white.opacity(0.82))
+
+            Section("Safety") {
+                Text("Use Report Listing for unsafe or inappropriate posts.")
+                Text("Use Block User to hide another student's listings and conversations on this device.")
+                Text("Meet only on campus and tell an adult if something feels wrong.")
+            }
+            .listRowBackground(Color.white.opacity(0.82))
+        }
+        .scrollContentBackground(.hidden)
+        .background(CirculaBackground())
+        .tint(CirculaTheme.forest)
+        .navigationTitle("Support & Privacy")
     }
 }
 
@@ -322,7 +400,7 @@ struct CommunityStandardsView: View {
             Section("Core Rules") {
                 Label("Use your real school identity", systemImage: "person.crop.circle.badge.checkmark")
                 Label("Meet only on campus", systemImage: "building.2")
-                Label("Keep trades fair and respectful", systemImage: "handshake")
+                Label("Keep trades fair and respectful", systemImage: "person.2")
                 Label("Do not post unsafe or prohibited items", systemImage: "exclamationmark.triangle")
             }
             .listRowBackground(Color.white.opacity(0.82))
@@ -346,7 +424,7 @@ struct CommunityStandardsView: View {
             .listRowBackground(Color.white.opacity(0.82))
 
             Section("If Something Feels Wrong") {
-                Text("Do not complete the exchange.")
+                Text("Do not complete the meetup.")
                 Text("Use the Report Listing button.")
                 Text("Tell a teacher, advisor, or school administrator.")
             }
@@ -354,8 +432,8 @@ struct CommunityStandardsView: View {
         }
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
-        .background(ExchangeBackground())
-        .tint(ExchangeTheme.forest)
+        .background(CirculaBackground())
+        .tint(CirculaTheme.forest)
         .navigationTitle("Standards")
     }
 }
@@ -389,15 +467,15 @@ struct ProjectProgressView: View {
             Section("Pilot Testing Goals") {
                 Text("Test with a small group of students.")
                 Text("Collect feedback on posting and browsing.")
-                Text("Check whether students understand safe exchange rules.")
+                Text("Check whether students understand safe meetup rules.")
                 Text("Use feedback to simplify confusing screens.")
             }
             .listRowBackground(Color.white.opacity(0.82))
         }
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
-        .background(ExchangeBackground())
-        .tint(ExchangeTheme.forest)
+        .background(CirculaBackground())
+        .tint(CirculaTheme.forest)
         .navigationTitle("Progress")
     }
 }
@@ -445,8 +523,8 @@ struct ModeratorReportsView: View {
         }
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
-        .background(ExchangeBackground())
-        .tint(ExchangeTheme.forest)
+        .background(CirculaBackground())
+        .tint(CirculaTheme.forest)
         .navigationTitle("Reports")
     }
 }

@@ -1,6 +1,6 @@
 //
 //  CreateListingView.swift
-//  TheExchange
+//  Circula
 //
 //  Created by Lawrence Liu on 5/6/26.
 //
@@ -60,10 +60,10 @@ struct CreateListingView: View {
             return "Price"
         case "Free":
             return "Free item note"
-        default:
-            return "Exchange preference"
-        }
+    default:
+        return "Trade preference"
     }
+}
 
     var body: some View {
         Form {
@@ -154,8 +154,8 @@ struct CreateListingView: View {
 
                     createdAlertTitle = synced ? "Listing Created" : "Listing Saved"
                     createdAlertMessage = synced ?
-                        "Your listing has been posted to The Exchange." :
-                        "Your listing was saved on this device, but Supabase did not confirm the upload yet. Check the sync banner and pull to refresh later."
+                        "Your listing has been posted to Circula." :
+                        "Your listing was saved on this device, but Supabase did not confirm the upload yet. Pull to refresh later."
                     showingCreatedAlert = true
                 }
             }
@@ -163,8 +163,8 @@ struct CreateListingView: View {
         }
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
-        .background(ExchangeBackground())
-        .tint(ExchangeTheme.forest)
+        .background(CirculaBackground())
+        .tint(CirculaTheme.forest)
         .navigationTitle("Post Listing")
         .onSubmit {
             KeyboardHelper.dismiss()

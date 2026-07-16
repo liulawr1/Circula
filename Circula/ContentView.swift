@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  TheExchange
+//  Circula
 //
 //  Created by Lawrence Liu on 5/5/26.
 //
@@ -128,7 +128,7 @@ struct ContentView: View {
     }
 
     func handleAuthCallback(_ url: URL) {
-        guard url.scheme == "theexchange" else {
+        guard url.scheme == "circula" else {
             return
         }
 
@@ -143,7 +143,7 @@ struct ContentView: View {
         }
 
         authCallbackTitle = "Email Verified"
-        authCallbackMessage = "Thank you for verifying your email. You can now sign in to The Exchange."
+        authCallbackMessage = "Thank you for verifying your email. You can now sign in to Circula."
     }
 
     func authCallbackValue(_ name: String, in url: URL) -> String? {
@@ -155,7 +155,7 @@ struct ContentView: View {
         }
 
         guard let fragment = url.fragment,
-              let components = URLComponents(string: "theexchange://callback?\(fragment)") else {
+              let components = URLComponents(string: "circula://callback?\(fragment)") else {
             return nil
         }
 
@@ -216,7 +216,7 @@ struct MainTabView: View {
                 Label("Profile", systemImage: "person.circle")
             }
         }
-        .tint(ExchangeTheme.forest)
+        .tint(CirculaTheme.forest)
     }
 }
 

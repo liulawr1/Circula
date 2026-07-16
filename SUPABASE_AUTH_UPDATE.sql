@@ -1,4 +1,4 @@
--- The Exchange Supabase Auth update
+-- Circula Supabase Auth update
 -- Run this once in Supabase Dashboard > SQL Editor.
 
 create table if not exists public.profiles (

@@ -1,6 +1,6 @@
 //
 //  ActivityView.swift
-//  TheExchange
+//  Circula
 //
 //  Created by Lawrence Liu on 5/6/26.
 //
@@ -57,14 +57,14 @@ struct ActivityView: View {
                     ActivityRowView(
                         iconName: "clock.fill",
                         color: .orange,
-                        title: "Pending Exchanges",
+                        title: "Pending Trades",
                         subtitle: "\(pendingListings.count) items pending"
                     )
 
                     ActivityRowView(
                         iconName: "checkmark.circle.fill",
                         color: .green,
-                        title: "Completed Exchanges",
+                        title: "Completed Trades",
                         subtitle: "\(completedListings.count) completed"
                     )
                 }
@@ -102,14 +102,14 @@ struct ActivityView: View {
                 Section("Reminders") {
                     Text("Meet only on campus.")
                     Text("Keep messages respectful.")
-                    Text("Mark listings completed after an exchange.")
+                    Text("Mark listings completed after a meetup.")
                 }
                 .listRowBackground(Color.white.opacity(0.82))
             }
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.interactively)
-            .background(ExchangeBackground())
-            .tint(ExchangeTheme.forest)
+            .background(CirculaBackground())
+            .tint(CirculaTheme.forest)
             .navigationTitle("Activity")
         }
     }
