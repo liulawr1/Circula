@@ -10,6 +10,7 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var store: MarketplaceStore
 
+    @AppStorage("acceptedTermsVersion") private var acceptedTermsVersion = ""
     @AppStorage("isSignedIn") private var isSignedIn = false
     @AppStorage("currentUserName") private var storedCurrentUserName = ""
     @AppStorage("currentUserEmail") private var currentUserEmail = ""
@@ -20,6 +21,8 @@ struct ContentView: View {
     @State private var didRestoreSession = false
     @State private var authCallbackTitle = ""
     @State private var authCallbackMessage = ""
+
+    private let currentTermsVersion = "2026-07-22"
 
     var currentUserName: String {
         if !storedCurrentUserName.isEmpty {
@@ -48,7 +51,11 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if isSignedIn && !accessToken.isEmpty {
+            if acceptedTermsVersion != currentTermsVersion {
+                TermsOfUseView {
+                    acceptedTermsVersion = currentTermsVersion
+                }
+            } else if isSignedIn && !accessToken.isEmpty {
                 MainTabView(
                     currentUserName: currentUserName,
                     currentUserEmail: currentUserEmail
