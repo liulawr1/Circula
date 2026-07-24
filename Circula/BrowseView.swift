@@ -13,6 +13,20 @@ struct BrowseView: View {
 
     let currentUserName: String
     let currentUserEmail: String
+    let isGuest: Bool
+    let onSignIn: () -> Void
+
+    init(
+        currentUserName: String,
+        currentUserEmail: String,
+        isGuest: Bool = false,
+        onSignIn: @escaping () -> Void = { }
+    ) {
+        self.currentUserName = currentUserName
+        self.currentUserEmail = currentUserEmail
+        self.isGuest = isGuest
+        self.onSignIn = onSignIn
+    }
 
     @State private var searchText = ""
     @State private var selectedCategory = "All"
@@ -25,6 +39,14 @@ struct BrowseView: View {
 
     var cleanedSearchText: String {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var hasActiveFilters: Bool {
+        !cleanedSearchText.isEmpty || selectedCategory != "All" || selectedType != "All"
+    }
+
+    var couldNotLoadListings: Bool {
+        store.listings.isEmpty && store.syncError != nil && !store.isLoading
     }
 
     var filteredListings: [Listing] {
@@ -61,7 +83,8 @@ struct BrowseView: View {
             VStack(spacing: 0) {
                 BrowseHeaderView(
                     currentUserName: currentUserName,
-                    listingCount: filteredListings.count
+                    listingCount: filteredListings.count,
+                    isGuest: isGuest
                 )
                 .padding(.horizontal)
                 .padding(.top, 8)
@@ -74,18 +97,16 @@ struct BrowseView: View {
                     ProgressView("Loading listings...")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if filteredListings.isEmpty {
-                    ContentUnavailableView(
-                        "No Listings Found",
-                        systemImage: "magnifyingglass",
-                        description: Text("Try changing your search or category filter.")
-                    )
+                    emptyState
                 } else {
                     List(filteredListings) { listing in
                         NavigationLink {
                             ListingDetailView(
                                 listing: listing,
                                 currentUserName: currentUserName,
-                                currentUserEmail: currentUserEmail
+                                currentUserEmail: currentUserEmail,
+                                isGuest: isGuest,
+                                onSignIn: onSignIn
                             )
                         } label: {
                             ListingRowView(listing: listing)
@@ -113,6 +134,52 @@ struct BrowseView: View {
             .onSubmit(of: .search) {
                 KeyboardHelper.dismiss()
             }
+        }
+    }
+
+    var emptyState: some View {
+        ScrollView {
+            if couldNotLoadListings {
+                ContentUnavailableView {
+                    Label("Couldn't Load Listings", systemImage: "wifi.exclamationmark")
+                } description: {
+                    Text("Check your internet connection, then try again.")
+                } actions: {
+                    Button("Try Again") {
+                        Task {
+                            await store.refreshAll()
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            } else if hasActiveFilters {
+                ContentUnavailableView {
+                    Label("No Matches", systemImage: "magnifyingglass")
+                } description: {
+                    Text("Try changing your search or filters.")
+                } actions: {
+                    Button("Clear Filters") {
+                        searchText = ""
+                        selectedCategory = "All"
+                        selectedType = "All"
+                    }
+                    .buttonStyle(.bordered)
+                }
+            } else {
+                ContentUnavailableView(
+                    "No Listings Yet",
+                    systemImage: "shippingbox",
+                    description: Text(
+                        isGuest
+                            ? "Check back soon for new student listings."
+                            : "Be the first student to post an item."
+                    )
+                )
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .refreshable {
+            await store.refreshAll()
         }
     }
 
@@ -177,6 +244,7 @@ struct BrowseView: View {
 struct BrowseHeaderView: View {
     let currentUserName: String
     let listingCount: Int
+    let isGuest: Bool
 
     var firstName: String {
         currentUserName.components(separatedBy: " ").first ?? currentUserName
@@ -185,7 +253,7 @@ struct BrowseHeaderView: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Hi, \(firstName)")
+                Text(isGuest ? "Browse as Guest" : "Hi, \(firstName)")
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundStyle(CirculaTheme.ink)

@@ -17,6 +17,7 @@ struct SignInView: View {
     @Binding var accessToken: String
     @Binding var refreshToken: String
 
+    let onContinueAsGuest: () -> Void
     @State private var authMode = AuthMode.signIn
     @State private var name = ""
     @State private var email = ""
@@ -41,9 +42,8 @@ struct SignInView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
-                Spacer()
-
+            ScrollView {
+                VStack(spacing: 20) {
                 VStack(spacing: 10) {
                     Image(systemName: "arrow.left.arrow.right.circle.fill")
                         .font(.system(size: 58))
@@ -141,6 +141,21 @@ struct SignInView: View {
                 .padding(.horizontal)
                 .circulaCard()
 
+                Button {
+                    KeyboardHelper.dismiss()
+                    onContinueAsGuest()
+                } label: {
+                    Label("Continue as Guest", systemImage: "eye")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                }
+                .buttonStyle(.bordered)
+                .tint(CirculaTheme.forest)
+
+                Text("No account is needed to browse listings.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 VStack(spacing: 8) {
                     Label("Supabase authentication", systemImage: "lock.shield")
                     Label("Head-Royce email required", systemImage: "checkmark.shield")
@@ -148,10 +163,9 @@ struct SignInView: View {
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
-
-                Spacer()
+                }
+                .padding()
             }
-            .padding()
             .background(CirculaBackground())
             .scrollDismissesKeyboard(.interactively)
             .tint(CirculaTheme.forest)
@@ -241,17 +255,17 @@ struct SignInView: View {
         if let error = error as? SupabaseRESTClient.APIError {
             switch error {
             case .missingConfig:
-                return "Supabase config is missing."
+                return "Circula is temporarily unavailable. Please try again later."
             case .unauthorized:
                 return "Login failed. Check your email and password."
             case .forbidden:
-                return "Supabase blocked this login. Check the auth SQL setup."
+                return "Circula could not complete this sign-in. Please contact support."
             case .auth(let message):
                 return readableAuthMessage(message)
             case .server(let message):
                 return readableAuthMessage(message)
             case .invalidResponse:
-                return "Supabase returned an unexpected login response."
+                return "Circula received an unexpected response. Please try again."
             }
         }
 

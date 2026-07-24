@@ -1,6 +1,6 @@
 # Circula Privacy Policy
 
-**Last updated:** July 16, 2026
+**Last updated:** July 23, 2026
 
 Circula is a school-only student marketplace designed to help members of the Head-Royce community trade, sell, give away, and reuse school-related items. This Privacy Policy explains what information Circula collects, how it is used, and the choices available to users.
 
@@ -19,7 +19,7 @@ When you create an account or sign in, Circula may collect:
 - Your Supabase authentication user ID
 - Authentication session information needed to keep you signed in
 
-Circula requires a Head-Royce email address so access can be limited to the school community.
+You may browse public listing information as a guest without creating an account. Circula requires a verified Head-Royce email address for account-based features such as posting, saving, and messaging.
 
 ### Listings and Marketplace Content
 
@@ -33,7 +33,7 @@ When you create or interact with listings, Circula may collect:
 - Saved listings
 - Timestamps related to listing activity
 
-Listings may be visible to other signed-in Circula users.
+Listing content, listing photos, and the listing owner's display name may be visible to guests and signed-in users. The listing owner's school email address is not provided to guests.
 
 ### Messages
 
@@ -53,7 +53,7 @@ If you report a listing, Circula may collect:
 - The listing being reported
 - The report reason
 - Your email address as the reporting user
-- Report status and timestamps
+- Report status and timestamps; guest reports use an anonymous reporter label
 
 Reports are used for moderation and safety review.
 
@@ -67,6 +67,7 @@ Circula uses collected information to:
 
 - Create and manage user accounts
 - Verify that users have Head-Royce email addresses
+- Let guests browse public marketplace listings
 - Display marketplace listings
 - Let users save listings
 - Let users message listing owners
@@ -83,7 +84,7 @@ Circula does not sell personal information.
 
 Circula may share or store information with service providers that are necessary for the app to function. Circula currently uses **Supabase** for authentication, database storage, and backend services.
 
-Some information you provide, such as listings, listing photos, display name, and marketplace messages, may be visible to other Circula users as part of normal app functionality.
+Listings, listing photos, and display names may be visible to guests and signed-in users. Marketplace messages are visible only to the conversation participants.
 
 Reports and safety-related information may be reviewed by the app administrator or school-related moderators when needed to keep the marketplace safe.
 
@@ -120,6 +121,7 @@ Circula includes safety features such as:
 - Head-Royce email verification
 - Listing reporting
 - User blocking
+- Automated checks for clearly prohibited or unsafe listing and message text
 - Community standards
 - Account deletion
 - On-campus meetup expectations

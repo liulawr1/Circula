@@ -117,10 +117,28 @@ struct ListingDetailView: View {
     let listing: Listing
     let currentUserName: String
     let currentUserEmail: String
+    let isGuest: Bool
+    let onSignIn: () -> Void
+
+    init(
+        listing: Listing,
+        currentUserName: String,
+        currentUserEmail: String,
+        isGuest: Bool = false,
+        onSignIn: @escaping () -> Void = { }
+    ) {
+        self.listing = listing
+        self.currentUserName = currentUserName
+        self.currentUserEmail = currentUserEmail
+        self.isGuest = isGuest
+        self.onSignIn = onSignIn
+    }
 
     @State private var showingReportAlert = false
     @State private var showingBlockUserAlert = false
-    @State private var reportSubmitted = false
+    @State private var actionAlertTitle = ""
+    @State private var actionAlertMessage = ""
+    @State private var showingActionAlert = false
 
     var isOwnListing: Bool {
         listing.ownerEmail.lowercased() == currentUserEmail.lowercased()
@@ -169,9 +187,11 @@ struct ListingDetailView: View {
                     Text(listing.ownerName)
                         .font(.headline)
 
-                    Text(listing.ownerEmail)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if !isGuest {
+                        Text(listing.ownerEmail)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Text(listing.description)
@@ -196,32 +216,61 @@ struct ListingDetailView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                 } else {
-                    Button {
-                        Task {
-                            await store.toggleSavedListing(id: listing.id)
-                        }
-                    } label: {
-                        Label(isSaved ? "Saved" : "Save Listing", systemImage: isSaved ? "heart.fill" : "heart")
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.white.opacity(0.82))
-                            .foregroundStyle(isSaved ? .red : .primary)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
+                    if isGuest {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label("Sign in to save this listing or message its owner.", systemImage: "lock")
+                                .font(.subheadline)
+                                .foregroundStyle(CirculaTheme.ink)
 
-                    NavigationLink {
-                        ChatView(
-                            listing: listing,
-                            currentUserName: currentUserName,
-                            currentUserEmail: currentUserEmail
-                        )
-                    } label: {
-                        Text("Message Owner")
-                            .frame(maxWidth: .infinity)
-                            .padding()
+                            Button(action: onSignIn) {
+                                Text("Sign In or Create Account")
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                            }
                             .background(CirculaTheme.forest)
                             .foregroundStyle(.white)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                        .padding()
+                        .background(Color.white.opacity(0.82))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    } else {
+                        Button {
+                            let wasSaved = isSaved
+
+                            Task {
+                                let succeeded = await store.toggleSavedListing(id: listing.id)
+
+                                if !succeeded {
+                                    showActionAlert(
+                                        title: wasSaved ? "Could Not Remove Saved Listing" : "Could Not Save Listing",
+                                        message: "Check your internet connection and try again."
+                                    )
+                                }
+                            }
+                        } label: {
+                            Label(isSaved ? "Saved" : "Save Listing", systemImage: isSaved ? "heart.fill" : "heart")
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.white.opacity(0.82))
+                                .foregroundStyle(isSaved ? .red : .primary)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+
+                        NavigationLink {
+                            ChatView(
+                                listing: listing,
+                                currentUserName: currentUserName,
+                                currentUserEmail: currentUserEmail
+                            )
+                        } label: {
+                            Text("Message Owner")
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(CirculaTheme.forest)
+                                .foregroundStyle(.white)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
                     }
 
                     Button(role: .destructive) {
@@ -240,15 +289,26 @@ struct ListingDetailView: View {
                                 let report = ListingReport(
                                     listingID: listing.id,
                                     listingTitle: listing.title,
-                                    reportedByEmail: currentUserEmail,
+                                    reportedByEmail: isGuest ? "anonymous@circula.app" : currentUserEmail,
                                     reason: reason,
                                     createdAt: Date(),
                                     status: "Open"
                                 )
 
                                 Task {
-                                    await store.reportListing(report)
-                                    reportSubmitted = true
+                                    let submitted = await store.reportListing(report)
+
+                                    if submitted {
+                                        showActionAlert(
+                                            title: "Report Submitted",
+                                            message: "Thank you for helping keep Circula safe."
+                                        )
+                                    } else {
+                                        showActionAlert(
+                                            title: "Report Not Submitted",
+                                            message: "Check your internet connection and try again."
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -257,10 +317,10 @@ struct ListingDetailView: View {
                     } message: {
                         Text("This will flag the listing for review by a school moderator.")
                     }
-                    .alert("Report Submitted", isPresented: $reportSubmitted) {
+                    .alert(actionAlertTitle, isPresented: $showingActionAlert) {
                         Button("OK", role: .cancel) { }
                     } message: {
-                        Text("Thank you for helping keep Circula safe.")
+                        Text(actionAlertMessage)
                     }
 
                     Button(role: .destructive) {
@@ -288,8 +348,18 @@ struct ListingDetailView: View {
                 dismiss()
             }
         } message: {
-            Text("You will no longer see this student's listings or conversations on this device.")
+            if isGuest {
+                Text("You will no longer see this student's listings on this device.")
+            } else {
+                Text("You will no longer see this student's listings or conversations on this device.")
+            }
         }
+    }
+
+    func showActionAlert(title: String, message: String) {
+        actionAlertTitle = title
+        actionAlertMessage = message
+        showingActionAlert = true
     }
 
     var listingImage: some View {

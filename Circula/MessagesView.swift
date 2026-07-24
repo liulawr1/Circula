@@ -178,6 +178,9 @@ struct ChatView: View {
     @State private var conversation: Conversation?
     @State private var messageText = ""
     @State private var isLoadingConversation = false
+    @State private var isSending = false
+    @State private var chatError = ""
+    @State private var conversationLoadFailed = false
     @FocusState private var isMessageFieldFocused: Bool
 
     init(
@@ -234,7 +237,22 @@ struct ChatView: View {
             if isLoadingConversation {
                 ProgressView("Opening conversation...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
+            } else if conversationLoadFailed {
+                ContentUnavailableView {
+                    Label("Couldn't Open Conversation", systemImage: "wifi.exclamationmark")
+                } description: {
+                    Text("Check your internet connection and try again.")
+                } actions: {
+                    Button("Try Again") {
+                        Task {
+                            await openConversationIfNeeded()
+                            await reloadMessages()
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if conversation != nil {
                 ScrollView {
                     VStack(spacing: 10) {
                         if messages.isEmpty {
@@ -261,7 +279,7 @@ struct ChatView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            if !isLoadingConversation {
+            if !isLoadingConversation && conversation != nil {
                 messageComposer
             }
         }
@@ -276,6 +294,18 @@ struct ChatView: View {
             await openConversationIfNeeded()
             await reloadMessages()
         }
+        .alert("Message Not Sent", isPresented: Binding(
+            get: { !chatError.isEmpty },
+            set: { isPresented in
+                if !isPresented {
+                    chatError = ""
+                }
+            }
+        )) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(chatError)
+        }
     }
 
     var messageComposer: some View {
@@ -284,6 +314,7 @@ struct ChatView: View {
                 .textFieldStyle(.roundedBorder)
                 .focused($isMessageFieldFocused)
                 .submitLabel(.send)
+                .disabled(isSending)
 
             Button {
                 sendCurrentMessage()
@@ -294,7 +325,7 @@ struct ChatView: View {
                     .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             }
-            .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || conversation == nil)
+            .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || conversation == nil || isSending)
         }
         .padding(.horizontal)
         .padding(.vertical, 10)
@@ -314,11 +345,25 @@ struct ChatView: View {
             return
         }
 
-        messageText = ""
-        isMessageFieldFocused = false
+        if let moderationMessage = ContentModeration.messageIssue(trimmedMessage) {
+            chatError = moderationMessage
+            return
+        }
+
+        isSending = true
 
         Task {
-            await store.sendMessage(trimmedMessage, in: conversation)
+            let sent = await store.sendMessage(trimmedMessage, in: conversation)
+            isSending = false
+
+            if sent {
+                if messageText.trimmingCharacters(in: .whitespacesAndNewlines) == trimmedMessage {
+                    messageText = ""
+                }
+                isMessageFieldFocused = true
+            } else {
+                chatError = "Check your internet connection and try again. Your message is still in the text box."
+            }
         }
     }
 
@@ -328,9 +373,11 @@ struct ChatView: View {
             return
         }
 
+        conversationLoadFailed = false
         isLoadingConversation = true
         conversation = await store.conversation(for: listing)
         isLoadingConversation = false
+        conversationLoadFailed = conversation == nil
     }
 
     func reloadMessages() async {

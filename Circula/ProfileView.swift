@@ -236,7 +236,7 @@ struct ProfileView: View {
             try await store.deleteCurrentAccount()
             onSignOut()
         } catch {
-            deleteAccountError = "Run SUPABASE_AUTH_UPDATE.sql, then try again. If it still fails, check your Supabase policies."
+            deleteAccountError = "Please try again. If the problem continues, contact circulasupport@gmail.com."
         }
     }
 }
@@ -250,6 +250,9 @@ struct ManageListingView: View {
 
     @State private var showingDeleteAlert = false
     @State private var selectedStatus: String
+    @State private var lastConfirmedStatus: String
+    @State private var operationError = ""
+    @State private var isDeleting = false
 
     let statuses = ["Available", "Pending", "Completed"]
 
@@ -257,6 +260,7 @@ struct ManageListingView: View {
         self.listing = listing
         self.onDeleted = onDeleted
         _selectedStatus = State(initialValue: listing.status)
+        _lastConfirmedStatus = State(initialValue: listing.status)
     }
 
     var body: some View {
@@ -282,11 +286,24 @@ struct ManageListingView: View {
                     }
                 }
                 .onChange(of: selectedStatus) {
+                    guard selectedStatus != lastConfirmedStatus else {
+                        return
+                    }
+
+                    let requestedStatus = selectedStatus
+
                     Task {
-                        await store.updateListingStatus(
+                        let succeeded = await store.updateListingStatus(
                             listingID: listing.id,
-                            status: selectedStatus
+                            status: requestedStatus
                         )
+
+                        if succeeded {
+                            lastConfirmedStatus = requestedStatus
+                        } else {
+                            selectedStatus = lastConfirmedStatus
+                            operationError = "The status could not be changed. Check your connection and try again."
+                        }
                     }
                 }
             }
@@ -302,8 +319,13 @@ struct ManageListingView: View {
                 Button(role: .destructive) {
                     showingDeleteAlert = true
                 } label: {
-                    Text("Delete Listing")
+                    if isDeleting {
+                        ProgressView()
+                    } else {
+                        Text("Delete Listing")
+                    }
                 }
+                .disabled(isDeleting)
             }
             .listRowBackground(Color.white.opacity(0.82))
         }
@@ -317,13 +339,32 @@ struct ManageListingView: View {
 
             Button("Delete", role: .destructive) {
                 Task {
-                    await store.deleteListing(id: listing.id)
-                    onDeleted()
-                    dismiss()
+                    isDeleting = true
+                    let succeeded = await store.deleteListing(id: listing.id)
+                    isDeleting = false
+
+                    if succeeded {
+                        onDeleted()
+                        dismiss()
+                    } else {
+                        operationError = "The listing could not be deleted. Check your connection and try again."
+                    }
                 }
             }
         } message: {
             Text("This will remove the listing from Circula.")
+        }
+        .alert("Could Not Update Listing", isPresented: Binding(
+            get: { !operationError.isEmpty },
+            set: { isPresented in
+                if !isPresented {
+                    operationError = ""
+                }
+            }
+        )) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(operationError)
         }
     }
 }
@@ -369,12 +410,19 @@ struct SupportPrivacyView: View {
     var body: some View {
         List {
             Section("Support") {
-                Text("For help, safety concerns, or moderation requests, please contact support at circulasupport@gmail.com.")
+                Link(destination: URL(string: "mailto:circulasupport@gmail.com")!) {
+                    Label("Please contact circulasupport@gmail.com", systemImage: "envelope")
+                }
+
+                Link(destination: URL(string: "https://liulawr1.github.io/Circula/")!) {
+                    Label("Privacy Policy", systemImage: "hand.raised")
+                }
             }
             .listRowBackground(Color.white.opacity(0.82))
 
             Section("Privacy") {
-                Text("Circula stores your school email, display name, listings, listing photos, saved listings, reports, conversations, and messages so the marketplace can work across devices.")
+                Text("Guests can view listing details and display names, but not school email addresses.")
+                Text("Signed-in users can see listing contact information and use account-based features such as posting, saving, and messaging.")
                 Text("Circula does not include ads or third-party tracking.")
                 Text("You can delete your account from Profile, which removes your account data from Circula.")
             }

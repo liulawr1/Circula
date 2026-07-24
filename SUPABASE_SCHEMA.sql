@@ -28,6 +28,7 @@ create table if not exists public.listings (
   exchange_preference text not null,
   image_data text,
   owner_name text not null,
+  owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   owner_email text not null,
   created_at timestamptz not null default now(),
   status text not null default 'Available'
@@ -166,34 +167,7 @@ $$;
 
 grant execute on function public.delete_current_user() to authenticated;
 
--- Prototype policies. These allow the mobile app's public anon key to read/write
--- marketplace data. Replace with Supabase Auth policies before a real launch.
-create policy "prototype read listings" on public.listings for select using (true);
-
-create policy "prototype write listings" on public.listings for insert with check (true);
-
-create policy "prototype update listings" on public.listings for update using (true) with check (true);
-
-create policy "prototype delete listings" on public.listings for delete using (true);
-
-create policy "prototype read saved listings" on public.saved_listings for select using (true);
-
-create policy "prototype write saved listings" on public.saved_listings for insert with check (true);
-
-create policy "prototype delete saved listings" on public.saved_listings for delete using (true);
-
-create policy "prototype read reports" on public.listing_reports for select using (true);
-
-create policy "prototype write reports" on public.listing_reports for insert with check (true);
-
-create policy "prototype update reports" on public.listing_reports for update using (true) with check (true);
-
-create policy "prototype read conversations" on public.conversations for select using (true);
-
-create policy "prototype write conversations" on public.conversations for insert with check (true);
-
-create policy "prototype update conversations" on public.conversations for update using (true) with check (true);
-
-create policy "prototype read messages" on public.messages for select using (true);
-
-create policy "prototype write messages" on public.messages for insert with check (true);
+-- Marketplace access remains closed after this reset until the production policies
+-- are installed. Run SUPABASE_PRODUCTION_SECURITY.sql immediately after this file.
+-- Keeping the policies in a separate data-preserving migration makes it safe to
+-- tighten an existing live project without resetting any user data.

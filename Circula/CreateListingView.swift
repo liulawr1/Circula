@@ -28,6 +28,7 @@ struct CreateListingView: View {
     @State private var showingCreatedAlert = false
     @State private var createdAlertTitle = ""
     @State private var createdAlertMessage = ""
+    @State private var dismissAfterAlert = false
 
     let categories = ["Textbooks", "School Supplies", "Sports Gear", "Art Supplies", "Tech", "Other"]
     let conditions = ["New", "Excellent", "Good", "Fair", "Poor"]
@@ -123,6 +124,16 @@ struct CreateListingView: View {
 
             Button("Post Listing") {
                 KeyboardHelper.dismiss()
+
+                if let moderationMessage = ContentModeration.listingIssue(
+                    title: cleanedTitle,
+                    description: cleanedDescription,
+                    exchangePreference: cleanedExchangePreference
+                ) {
+                    showAlert(title: "Review Your Listing", message: moderationMessage)
+                    return
+                }
+
                 isPosting = true
 
                 let newListing = Listing(
@@ -142,21 +153,28 @@ struct CreateListingView: View {
                 Task {
                     let synced = await store.createListing(newListing)
 
-                    title = ""
-                    category = "Textbooks"
-                    condition = "Good"
-                    type = "Trade"
-                    description = ""
-                    exchangePreference = ""
-                    selectedPhoto = nil
-                    selectedImageData = nil
                     isPosting = false
 
-                    createdAlertTitle = synced ? "Listing Created" : "Listing Saved"
-                    createdAlertMessage = synced ?
-                        "Your listing has been posted to Circula." :
-                        "Your listing was saved on this device, but Supabase did not confirm the upload yet. Pull to refresh later."
-                    showingCreatedAlert = true
+                    if synced {
+                        title = ""
+                        category = "Textbooks"
+                        condition = "Good"
+                        type = "Trade"
+                        description = ""
+                        exchangePreference = ""
+                        selectedPhoto = nil
+                        selectedImageData = nil
+                        showAlert(
+                            title: "Listing Created",
+                            message: "Your listing has been posted to Circula.",
+                            shouldDismiss: true
+                        )
+                    } else {
+                        showAlert(
+                            title: "Listing Not Posted",
+                            message: "Circula could not reach the server. Your information is still here so you can try again."
+                        )
+                    }
                 }
             }
             .disabled(!canPost)
@@ -171,7 +189,9 @@ struct CreateListingView: View {
         }
         .alert(createdAlertTitle, isPresented: $showingCreatedAlert) {
             Button("OK", role: .cancel) {
-                dismiss()
+                if dismissAfterAlert {
+                    dismiss()
+                }
             }
         } message: {
             Text(createdAlertMessage)
@@ -195,5 +215,12 @@ struct CreateListingView: View {
         }
 
         return resizedImage.jpegData(compressionQuality: 0.75)
+    }
+
+    func showAlert(title: String, message: String, shouldDismiss: Bool = false) {
+        createdAlertTitle = title
+        createdAlertMessage = message
+        dismissAfterAlert = shouldDismiss
+        showingCreatedAlert = true
     }
 }

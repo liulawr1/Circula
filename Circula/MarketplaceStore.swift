@@ -28,15 +28,25 @@ final class MarketplaceStore: ObservableObject {
     @Published private(set) var lastSyncedAt: Date?
 
     private let client: SupabaseRESTClient?
-    private let cacheURL: URL
     private var currentUserName = ""
     private var currentUserEmail = ""
+    private let moderatorEmails = Set([
+        "lawrencel2026@headroyce.org"
+    ])
+
+    private var cacheURL: URL? {
+        guard !currentUserEmail.isEmpty else {
+            return nil
+        }
+
+        let cacheID = UUIDv5.make(name: "cache-\(currentUserEmail)").uuidString
+        return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("marketplace-cache-\(cacheID)")
+            .appendingPathExtension("json")
+    }
 
     init(useSampleData: Bool = false, client: SupabaseRESTClient? = nil) {
         self.client = client ?? SupabaseRESTClient.fromBundleConfig()
-        self.cacheURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("marketplace-cache")
-            .appendingPathExtension("json")
         self.listings = useSampleData ? Listing.sampleListings : []
     }
 
@@ -45,8 +55,17 @@ final class MarketplaceStore: ObservableObject {
     }
 
     func configureCurrentUser(name: String, email: String, accessToken: String? = nil) {
+        let normalizedEmail = email.lowercased()
+        if currentUserEmail != normalizedEmail {
+            listings = []
+            savedListingIDs = []
+            reports = []
+            conversations = []
+            messagesByConversationID = [:]
+        }
+
         currentUserName = name
-        currentUserEmail = email.lowercased()
+        currentUserEmail = normalizedEmail
         client?.setAccessToken(accessToken)
         loadBlockedUsers()
         loadLocalCache()
@@ -54,6 +73,19 @@ final class MarketplaceStore: ObservableObject {
         Task {
             await refreshAll()
         }
+    }
+
+    func configureGuest() async {
+        currentUserName = "Guest"
+        currentUserEmail = ""
+        client?.setAccessToken(nil)
+        savedListingIDs = []
+        reports = []
+        conversations = []
+        messagesByConversationID = [:]
+        loadBlockedUsers()
+
+        await refreshPublicListings()
     }
 
     func clearSession() {
@@ -133,11 +165,16 @@ final class MarketplaceStore: ObservableObject {
         }
 
         try await client.deleteCurrentAccount()
+        if let cacheURL {
+            try? FileManager.default.removeItem(at: cacheURL)
+        }
+        UserDefaults.standard.removeObject(forKey: blockedUsersDefaultsKey())
         clearSession()
     }
 
     func refreshAll() async {
-        guard !currentUserEmail.isEmpty else {
+        if currentUserEmail.isEmpty {
+            await refreshPublicListings()
             return
         }
 
@@ -153,8 +190,10 @@ final class MarketplaceStore: ObservableObject {
         do {
             let fetchedListings = try await client.fetchListings()
             let fetchedSavedIDs = try await client.fetchSavedListingIDs(for: currentUserEmail)
-            let fetchedReports = try await client.fetchReports()
             let fetchedConversations = try await client.fetchConversations(for: currentUserEmail)
+            let fetchedReports = moderatorEmails.contains(currentUserEmail)
+                ? try await client.fetchReports()
+                : []
 
             listings = filteredListings(fetchedListings)
             let visibleListingIDs = Set(listings.map(\.id))
@@ -171,12 +210,31 @@ final class MarketplaceStore: ObservableObject {
         }
     }
 
-    func createListing(_ listing: Listing) async -> Bool {
-        upsertListing(listing)
-        saveLocalCache()
-
+    func refreshPublicListings() async {
         guard let client else {
-            syncError = "Supabase config needed. Listing saved on this device only."
+            syncError = "Circula could not connect. Check your internet connection and try again."
+            isCloudConnected = false
+            return
+        }
+
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let fetchedListings = try await client.fetchPublicListings()
+            listings = filteredListings(fetchedListings)
+            syncError = nil
+            isCloudConnected = true
+            lastSyncedAt = Date()
+        } catch {
+            syncError = friendlySyncError(for: error)
+            isCloudConnected = false
+        }
+    }
+
+    func createListing(_ listing: Listing) async -> Bool {
+        guard let client else {
+            syncError = "Circula could not connect. Your listing was not posted."
             isCloudConnected = false
             return false
         }
@@ -196,71 +254,64 @@ final class MarketplaceStore: ObservableObject {
         }
     }
 
-    func updateListingStatus(listingID: UUID, status: String) async {
-        guard let listingIndex = listings.firstIndex(where: { $0.id == listingID }) else {
-            return
-        }
-
-        listings[listingIndex].status = status
-        saveLocalCache()
-
+    func updateListingStatus(listingID: UUID, status: String) async -> Bool {
         guard let client else {
-            syncError = "Supabase config needed. Status saved on this device only."
+            syncError = "Circula could not connect. The status was not changed."
             isCloudConnected = false
-            return
+            return false
         }
 
         do {
             try await client.updateListingStatus(listingID: listingID, status: status)
+            if let listingIndex = listings.firstIndex(where: { $0.id == listingID }) {
+                listings[listingIndex].status = status
+            }
+            saveLocalCache()
             syncError = nil
             isCloudConnected = true
             lastSyncedAt = Date()
+            return true
         } catch {
             syncError = friendlySyncError(for: error)
             isCloudConnected = false
+            return false
         }
     }
 
-    func deleteListing(id: UUID) async {
-        listings.removeAll { $0.id == id }
-        savedListingIDs.remove(id)
-        saveLocalCache()
-
+    func deleteListing(id: UUID) async -> Bool {
         guard let client else {
-            syncError = "Supabase config needed. Listing deleted on this device only."
+            syncError = "Circula could not connect. The listing was not deleted."
             isCloudConnected = false
-            return
+            return false
         }
 
         do {
             try await client.deleteListing(id: id)
+            listings.removeAll { $0.id == id }
+            savedListingIDs.remove(id)
+            saveLocalCache()
             syncError = nil
             isCloudConnected = true
             lastSyncedAt = Date()
+            return true
         } catch {
             syncError = friendlySyncError(for: error)
             isCloudConnected = false
+            return false
         }
     }
 
-    func toggleSavedListing(id: UUID) async {
+    func toggleSavedListing(id: UUID) async -> Bool {
         guard !currentUserEmail.isEmpty else {
-            return
+            return false
         }
 
         let shouldSave = !savedListingIDs.contains(id)
 
-        if shouldSave {
-            savedListingIDs.insert(id)
-        } else {
-            savedListingIDs.remove(id)
-        }
-        saveLocalCache()
-
         guard let client else {
-            syncError = "Supabase config needed. Saved listings are stored on this device only."
+            syncError = "Circula could not connect. The saved item was not changed."
             isCloudConnected = false
-            return
+            return false
         }
 
         do {
@@ -270,33 +321,44 @@ final class MarketplaceStore: ObservableObject {
                 try await client.unsaveListing(id: id, userEmail: currentUserEmail)
             }
 
+            if shouldSave {
+                savedListingIDs.insert(id)
+            } else {
+                savedListingIDs.remove(id)
+            }
+            saveLocalCache()
             syncError = nil
             isCloudConnected = true
             lastSyncedAt = Date()
+            return true
         } catch {
             syncError = friendlySyncError(for: error)
             isCloudConnected = false
+            return false
         }
     }
 
-    func reportListing(_ report: ListingReport) async {
-        reports.append(report)
-        saveLocalCache()
-
+    func reportListing(_ report: ListingReport) async -> Bool {
         guard let client else {
-            syncError = "Supabase config needed. Report saved on this device only."
+            syncError = "Circula could not connect. The report was not submitted."
             isCloudConnected = false
-            return
+            return false
         }
 
         do {
             try await client.upsertReport(report)
+            if moderatorEmails.contains(currentUserEmail) {
+                reports.append(report)
+                saveLocalCache()
+            }
             syncError = nil
             isCloudConnected = true
             lastSyncedAt = Date()
+            return true
         } catch {
             syncError = friendlySyncError(for: error)
             isCloudConnected = false
+            return false
         }
     }
 
@@ -305,6 +367,7 @@ final class MarketplaceStore: ObservableObject {
             return
         }
 
+        let previousStatus = reports[index].status
         reports[index].status = status
         saveLocalCache()
 
@@ -320,6 +383,10 @@ final class MarketplaceStore: ObservableObject {
             isCloudConnected = true
             lastSyncedAt = Date()
         } catch {
+            if let currentIndex = reports.firstIndex(where: { $0.id == reportID }) {
+                reports[currentIndex].status = previousStatus
+                saveLocalCache()
+            }
             syncError = friendlySyncError(for: error)
             isCloudConnected = false
         }
@@ -334,12 +401,9 @@ final class MarketplaceStore: ObservableObject {
         let conversationID = deterministicConversationID(for: listing.id, buyerEmail: currentUserEmail)
 
         guard let client else {
-            let conversation = localConversation(for: listing, id: conversationID)
-            upsertConversation(conversation)
-            saveLocalCache()
-            syncError = "Supabase config needed. Conversation saved on this device only."
+            syncError = "Circula could not connect. The conversation could not be opened."
             isCloudConnected = false
-            return conversation
+            return nil
         }
 
         do {
@@ -353,12 +417,9 @@ final class MarketplaceStore: ObservableObject {
             saveLocalCache()
             return conversation
         } catch {
-            let conversation = localConversation(for: listing, id: conversationID)
-            upsertConversation(conversation)
-            saveLocalCache()
             syncError = friendlySyncError(for: error)
             isCloudConnected = false
-            return conversation
+            return nil
         }
     }
 
@@ -381,11 +442,11 @@ final class MarketplaceStore: ObservableObject {
         }
     }
 
-    func sendMessage(_ text: String, in conversation: Conversation) async {
+    func sendMessage(_ text: String, in conversation: Conversation) async -> Bool {
         let cleanedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !cleanedText.isEmpty else {
-            return
+            return false
         }
 
         let message = ChatMessage(
@@ -396,28 +457,30 @@ final class MarketplaceStore: ObservableObject {
             createdAt: Date()
         )
 
-        messagesByConversationID[conversation.id, default: []].append(message)
         var updatedConversation = conversation
         updatedConversation.lastMessage = cleanedText
         updatedConversation.updatedAt = message.createdAt
-        upsertConversation(updatedConversation)
-        saveLocalCache()
 
         guard let client else {
-            syncError = "Supabase config needed. Message saved on this device only."
+            syncError = "Circula could not connect. Your message was not sent."
             isCloudConnected = false
-            return
+            return false
         }
 
         do {
             try await client.upsertMessage(message)
             try await client.updateConversationPreview(updatedConversation)
+            messagesByConversationID[conversation.id, default: []].append(message)
+            upsertConversation(updatedConversation)
+            saveLocalCache()
             syncError = nil
             isCloudConnected = true
             lastSyncedAt = Date()
+            return true
         } catch {
             syncError = friendlySyncError(for: error)
             isCloudConnected = false
+            return false
         }
     }
 
@@ -516,11 +579,9 @@ private extension MarketplaceStore {
     }
 
     func loadLocalCache() {
-        guard let data = try? Data(contentsOf: cacheURL),
+        guard let cacheURL,
+              let data = try? Data(contentsOf: cacheURL),
               let snapshot = try? JSONDecoder().decode(CacheSnapshot.self, from: data) else {
-            if listings.isEmpty {
-                listings = Listing.sampleListings
-            }
             return
         }
 
@@ -537,6 +598,10 @@ private extension MarketplaceStore {
     }
 
     func saveLocalCache() {
+        guard let cacheURL else {
+            return
+        }
+
         let messageThreads = messagesByConversationID.map { conversationID, messages in
             MessageThread(conversationID: conversationID, messages: messages)
         }
@@ -799,6 +864,21 @@ final class SupabaseRESTClient {
         return rows.map(\.listing)
     }
 
+    func fetchPublicListings() async throws -> [Listing] {
+        let rows: [PublicListingRow] = try await request(
+            table: "listings",
+            queryItems: [
+                URLQueryItem(
+                    name: "select",
+                    value: "id,title,category,condition,type,description,exchange_preference,image_data,owner_name,owner_id,created_at,status"
+                ),
+                URLQueryItem(name: "order", value: "created_at.desc")
+            ]
+        )
+
+        return rows.map(\.listing)
+    }
+
     func upsertListing(_ listing: Listing) async throws -> Listing {
         let rows: [ListingRow] = try await request(
             table: "listings",
@@ -888,9 +968,8 @@ final class SupabaseRESTClient {
         let _: [ReportRow] = try await request(
             table: "listing_reports",
             method: "POST",
-            queryItems: [URLQueryItem(name: "on_conflict", value: "id")],
             body: ReportRow(report: report),
-            prefer: "resolution=merge-duplicates,return=minimal"
+            prefer: "return=minimal"
         )
     }
 
@@ -927,10 +1006,27 @@ final class SupabaseRESTClient {
             method: "POST",
             queryItems: [URLQueryItem(name: "on_conflict", value: "id")],
             body: ConversationRow(conversation: conversation),
-            prefer: "resolution=merge-duplicates,return=representation"
+            prefer: "resolution=ignore-duplicates,return=representation"
         )
 
-        return rows.first?.conversation ?? conversation
+        if let insertedConversation = rows.first?.conversation {
+            return insertedConversation
+        }
+
+        let existingRows: [ConversationRow] = try await request(
+            table: "conversations",
+            queryItems: [
+                URLQueryItem(name: "select", value: "*"),
+                URLQueryItem(name: "id", value: "eq.\(conversation.id.uuidString)"),
+                URLQueryItem(name: "limit", value: "1")
+            ]
+        )
+
+        guard let existingConversation = existingRows.first?.conversation else {
+            throw APIError.invalidResponse
+        }
+
+        return existingConversation
     }
 
     func updateConversationPreview(_ conversation: Conversation) async throws {
@@ -1028,6 +1124,55 @@ private extension SupabaseRESTClient {
                 imageData: imageData.flatMap { Data(base64Encoded: $0) },
                 ownerName: ownerName,
                 ownerEmail: ownerEmail,
+                createdAt: createdAt,
+                status: status
+            )
+        }
+    }
+
+    struct PublicListingRow: Decodable {
+        let id: UUID
+        let title: String
+        let category: String
+        let condition: String
+        let type: String
+        let description: String
+        let exchangePreference: String
+        let imageData: String?
+        let ownerName: String
+        let ownerID: UUID?
+        let createdAt: Date
+        let status: String
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case title
+            case category
+            case condition
+            case type
+            case description
+            case exchangePreference = "exchange_preference"
+            case imageData = "image_data"
+            case ownerName = "owner_name"
+            case ownerID = "owner_id"
+            case createdAt = "created_at"
+            case status
+        }
+
+        var listing: Listing {
+            let anonymousOwnerID = ownerID ?? id
+
+            return Listing(
+                id: id,
+                title: title,
+                category: category,
+                condition: condition,
+                type: type,
+                description: description,
+                exchangePreference: exchangePreference,
+                imageData: imageData.flatMap { Data(base64Encoded: $0) },
+                ownerName: ownerName,
+                ownerEmail: "user-\(anonymousOwnerID.uuidString.lowercased())@anonymous.circula",
                 createdAt: createdAt,
                 status: status
             )

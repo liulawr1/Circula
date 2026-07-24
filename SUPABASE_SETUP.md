@@ -21,7 +21,7 @@ YOUR_SUPABASE_ANON_KEY
 
 with your real values.
 
-When those values are still placeholders, the app will keep working with a local device-only cache and show a setup banner.
+When those values are still placeholders, Circula cannot load or change shared marketplace data.
 
 ## Add authentication
 
@@ -52,8 +52,16 @@ Do not leave the Site URL as `http://localhost:3000`, and do not use the raw Sup
 
 The app registers the `circula://` URL scheme. When a student opens the newest verification email on a device with Circula installed, the link opens the app and shows an email-verified message. Then the student can sign in.
 
-## Important security note
+## Required production security
 
-The marketplace tables still use permissive prototype row-level security policies so the current student marketplace can be tested quickly. That is fine for a class/demo pilot, but not for a public launch.
+Before uploading a build to App Store Connect, open **SQL Editor**, paste the full contents of `SUPABASE_PRODUCTION_SECURITY.sql`, and run it.
 
-Before a real launch, tighten the marketplace row-level security policies so students can only edit their own listings, saved items, conversations, and messages.
+This migration preserves existing data and:
+
+- lets guests read public listing details without receiving owner email addresses
+- lets signed-in students change only their own listings and saved items
+- limits conversations and messages to their participants
+- keeps reports private to the moderator account
+- allows both guests and signed-in students to submit safety reports
+
+Do not rerun `SUPABASE_SCHEMA.sql` on the live project. It resets the app tables. For an existing project, run only the authentication update if still needed, followed by `SUPABASE_PRODUCTION_SECURITY.sql`.
